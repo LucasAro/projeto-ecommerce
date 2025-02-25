@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    networks:
+      - app-network
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+
+  localstack:
+    image: localstack/localstack:latest
+    networks:
+      - app-network
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=lambda,s3,cloudformation,iam,apigateway,logs,cloudwatch,sts,ssm
+      - DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - LAMBDA_EXECUTOR=local
+      - HOSTNAME_EXTERNAL=localstack
+      - LOCALSTACK_HOST=localstack
+      - DATA_DIR=/tmp/localstack/data
+      - DISABLE_CORS_CHECKS=1
+      - LAMBDA_REMOTE_DOCKER=false
+      - LS_LOG=trace
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    networks:
+      - app-network
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - mongodb
+      - localstack
+    environment:
+      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ENDPOINT_URL=http://localstack:4566
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "6006:6006"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true  # Para hot reload funcionar no Docker
+    depends_on:
+      - backend
+
+  lambda:
+    platform: linux/arm64
+    build:
+      context: ./lambda
+      dockerfile: Dockerfile
+    networks:
+      - app-network
+    volumes:
+      - ./lambda:/var/task
+    depends_on:
+      - localstack
+      - mongodb
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - LAMBDA_ENDPOINT=http://localstack:4566
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - LOCALSTACK_HOSTNAME=localstack
+      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/test
+        - AWS_DEFAULT_REGION=us-east-1
+        - LAMBDA_ENDPOINT=http://localstack:4566
+        - AWS_ENDPOINT_URL=http://localstack:4566
+        - LOCALSTACK_HOSTNAME=localstack
+        - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  localstack_data:

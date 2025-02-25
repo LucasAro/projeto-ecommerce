@@ -1,0 +1,33 @@
+service: hub-xp-orders
+provider:
+  name: aws
+  runtime: python3.9
+  stage: dev
+  region: us-east-1
+  environment:
+    MONGODB_URL: mongodb://admin:admin123@mongodb:27017/
+  deploymentBucket:
+    name: hub-xp-orders-bucket
+
+functions:
+  processOrder:
+    handler: handler.process_order
+    events:
+      - http:
+          path: /process-order
+          method: post
+          cors: true
+
+plugins:
+  - serverless-localstack
+
+custom:
+  localstack:
+    stages:
+      - dev
+    host: localstack
+    edgePort: 4566
+    lambda:
+      mountCode: true
+    docker:
+      sudo: false
