@@ -62,7 +62,7 @@ Este é um aplicativo de e-commerce full stack desenvolvido com FastAPI, MongoDB
 1. Clone o repositório:
 
 ```bash
-git clone https://github.com/seuusuario/projeto-ecommerce.git
+git clone https://github.com/LucasAro/projeto-ecommerce.git
 cd projeto-ecommerce/projeto-ecommerce/
 ```
 
